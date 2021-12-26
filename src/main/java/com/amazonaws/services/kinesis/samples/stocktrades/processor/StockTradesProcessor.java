@@ -27,8 +27,11 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.kinesis.common.ConfigsBuilder;
+import software.amazon.kinesis.common.InitialPositionInStream;
+import software.amazon.kinesis.common.InitialPositionInStreamExtended;
 import software.amazon.kinesis.common.KinesisClientUtil;
 import software.amazon.kinesis.coordinator.Scheduler;
+import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 /**
  * Uses the Kinesis Client Library (KCL) 2.2.9 to continuously consume and process stock trade
@@ -83,7 +86,8 @@ public class StockTradesProcessor {
         DynamoDbAsyncClient dynamoClient = DynamoDbAsyncClient.builder().region(region).build();
         CloudWatchAsyncClient cloudWatchClient = CloudWatchAsyncClient.builder().region(region).build();
         StockTradeRecordProcessorFactory shardRecordProcessor = new StockTradeRecordProcessorFactory();
-        ConfigsBuilder configsBuilder = new ConfigsBuilder(streamName, applicationName, kinesisClient, dynamoClient, cloudWatchClient, UUID.randomUUID().toString(), shardRecordProcessor);
+        ConfigsBuilder configsBuilder = new ConfigsBuilder(streamName, applicationName, kinesisClient, dynamoClient,
+          cloudWatchClient, UUID.randomUUID().toString(), shardRecordProcessor);
 
         Scheduler scheduler = new Scheduler(
                 configsBuilder.checkpointConfig(),
@@ -93,6 +97,10 @@ public class StockTradesProcessor {
                 configsBuilder.metricsConfig(),
                 configsBuilder.processorConfig(),
                 configsBuilder.retrievalConfig()
+                  //https://stackoverflow.com/questions/63245925/aws-kinesis-kcl-skips-records-added-before-startup
+                  //process since the beginning of stream
+                  .initialPositionInStreamExtended(InitialPositionInStreamExtended.newInitialPosition(InitialPositionInStream.TRIM_HORIZON))
+                  .retrievalSpecificConfig(new PollingConfig(streamName, kinesisClient))
         );
         int exitCode = 0;
         try {

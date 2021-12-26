@@ -32,6 +32,8 @@ import software.amazon.kinesis.processor.ShardRecordProcessor;
 import com.amazonaws.services.kinesis.samples.stocktrades.model.StockTrade;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
+import java.nio.ByteBuffer;
+
 /**
  * Processes records retrieved from stock trades stream.
  *
@@ -43,11 +45,11 @@ public class StockTradeRecordProcessor implements ShardRecordProcessor {
     private String kinesisShardId;
 
     // Reporting interval
-    private static final long REPORTING_INTERVAL_MILLIS = 60000L; // 1 minute
+    private static final long REPORTING_INTERVAL_MILLIS = 15000L; // 1 minute
     private long nextReportingTimeInMillis;
 
     // Checkpointing interval
-    private static final long CHECKPOINT_INTERVAL_MILLIS = 60000L; // 1 minute
+    private static final long CHECKPOINT_INTERVAL_MILLIS = 15000L; // 1 minute
     private long nextCheckpointTimeInMillis;
 
     // Aggregates stats for stock trades
@@ -56,6 +58,7 @@ public class StockTradeRecordProcessor implements ShardRecordProcessor {
     @Override
     public void initialize(InitializationInput initializationInput) {
         kinesisShardId = initializationInput.shardId();
+
         log.info("Initializing record processor for shard: " + kinesisShardId);
         log.info("Initializing @ Sequence: " + initializationInput.extendedSequenceNumber().toString());
 
@@ -88,15 +91,27 @@ public class StockTradeRecordProcessor implements ShardRecordProcessor {
     }
 
     private void reportStats() {
-        // TODO: Implement method
+        System.out.println("****** Shard " + kinesisShardId + " stats for last 1 minute ******\n" +
+          stockStats + "\n" +
+          "****************************************************************\n");
     }
 
     private void resetStats() {
-        // TODO: Implement method
+        stockStats = new StockStats();
     }
 
     private void processRecord(KinesisClientRecord record) {
-        // TODO: Implement method
+        byte[] b = new byte[record.data().remaining()];
+        ByteBuffer byteBuf = record.data().get(b);
+
+        //ByteBuffer data = record.data();
+        StockTrade trade = StockTrade.fromJsonAsBytes(b);
+        if (trade == null) {
+            log.warn("Skipping record. Unable to parse record into StockTrade. Partition Key: " + record.partitionKey());
+            return;
+        }
+        System.out.println(trade.toString());
+        stockStats.addStockTrade(trade);
     }
 
     @Override

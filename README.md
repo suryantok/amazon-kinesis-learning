@@ -10,3 +10,11 @@ The tutorial uses KCL 2.2.9 to demonstrate how to send a stream of records to Ki
 ## License Summary
 
 This sample code is made available under the MIT-0 license. See the LICENSE file.
+
+## Compile
+`mvn clean compile assembly:single`
+
+## Running 
+**Producer:** `java -cp ./target/amazon-kinesis-learning-0.0.1-jar-with-dependencies.jar  com.amazonaws.services.kinesis.samples.stocktrades.writer.StockTradesWriter StockTradeStream <region>`
+
+**Consumer:**  `java -cp ./target/amazon-kinesis-learning-0.0.1-jar-with-dependencies.jar  com.amazonaws.services.kinesis.samples.stocktrades.processor.StockTradesProcessor <appName> StockTradeStream <region>`

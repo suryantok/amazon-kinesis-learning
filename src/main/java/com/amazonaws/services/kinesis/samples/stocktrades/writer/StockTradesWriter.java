@@ -79,7 +79,27 @@ public class StockTradesWriter {
      */
     private static void sendStockTrade(StockTrade trade, KinesisAsyncClient kinesisClient,
                                        String streamName) {
-        // TODO: Implement method
+        byte[] bytes = trade.toJsonAsBytes();
+        // The bytes could be null if there is an issue with the JSON serialization by the Jackson JSON library.
+        if (bytes == null) {
+            LOG.warn("Could not get JSON bytes for stock trade");
+            return;
+        }
+
+        LOG.info("Putting trade: " + trade.toString());
+        PutRecordRequest request = PutRecordRequest.builder()
+          .partitionKey(trade.getTickerSymbol()) // We use the ticker symbol as the partition key,
+                                                 // explained in the Supplemental Information section below.
+          .streamName(streamName)
+          .data(SdkBytes.fromByteArray(bytes))
+          .build();
+        try {
+            kinesisClient.putRecord(request).get();
+        } catch (InterruptedException e) {
+            LOG.info("Interrupted, assuming shutdown.");
+        } catch (ExecutionException e) {
+            LOG.error("Exception while sending data to Kinesis. Will try again next cycle.", e);
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -103,6 +123,7 @@ public class StockTradesWriter {
         while(true) {
             StockTrade trade = stockTradeGenerator.getRandomTrade();
             sendStockTrade(trade, kinesisClient, streamName);
+            System.out.println(trade.toString());
             Thread.sleep(100);
         }
     }
